@@ -11,18 +11,23 @@
  */
 class MudHotkeyListener {
     constructor() {
-        this._EVENT_TYPE = "keydown";
         this._hotkeys = new Map();
+        this._heldCodes = new Set();
 
-        this._handleKeyEventBound = this._handleKeyEvent.bind(this);
-        document.addEventListener(this._EVENT_TYPE, this._handleKeyEventBound);
+        this._handleKeyDownBound = this._handleKeyDown.bind(this);
+        this._handleKeyUpBound = this._handleKeyUp.bind(this);
+
+        document.addEventListener("keydown", this._handleKeyDownBound);
+        document.addEventListener("keyup", this._handleKeyUpBound);
+        window.addEventListener("blur", () => this._heldCodes.clear());
     }
 
     /**
      * Releases global keyboard listeners.
      */
     dispose() {
-        document.removeEventListener(this._EVENT_TYPE, this._handleKeyEventBound);
+        document.removeEventListener("keydown", this._handleKeyDownBound);
+        document.removeEventListener("keyup", this._handleKeyUpBound);
     }
 
     /**
@@ -56,7 +61,16 @@ class MudHotkeyListener {
         };
     }
 
-    _handleKeyEvent(e) {
+    _handleKeyDown(e) {
+        this._heldCodes.add(e.code);
+        this._matchHotkeys(e);
+    }
+
+    _handleKeyUp(e) {
+        this._heldCodes.delete(e.code);
+    }
+
+    _matchHotkeys(e) {
         const pressedKey = e.code || e.key;
         const pressedModifiers = this._getPressedModifiers(e);
 
@@ -88,42 +102,9 @@ class MudHotkeyListener {
         }
     }
 
-    _getPressedModifiers(e) {
-        const pressedModifiers = new Set();
-
-        if (e.ctrlKey) {
-            if (e.code === "ControlRight" || e.location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT) {
-                pressedModifiers.add("ControlRight");
-            } else {
-                pressedModifiers.add("ControlLeft");
-            }
-        }
-
-        if (e.shiftKey) {
-            if (e.code === "ShiftRight" || e.location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT) {
-                pressedModifiers.add("ShiftRight");
-            } else {
-                pressedModifiers.add("ShiftLeft");
-            }
-        }
-
-        if (e.altKey) {
-            if (e.code === "AltRight" || e.location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT) {
-                pressedModifiers.add("AltRight");
-            } else {
-                pressedModifiers.add("AltLeft");
-            }
-        }
-
-        if (e.metaKey) {
-            if (e.code === "MetaRight" || e.location === KeyboardEvent.DOM_KEY_LOCATION_RIGHT) {
-                pressedModifiers.add("MetaRight");
-            } else {
-                pressedModifiers.add("MetaLeft");
-            }
-        }
-
-        return pressedModifiers;
+    _getPressedModifiers() {
+        const MODIFIER_CODES = ["ControlLeft", "ControlRight", "ShiftLeft", "ShiftRight", "AltLeft", "AltRight", "MetaLeft", "MetaRight"];
+        return new Set([...this._heldCodes].filter(c => MODIFIER_CODES.includes(c)));
     }
 }
 
